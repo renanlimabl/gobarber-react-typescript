@@ -3,6 +3,7 @@ import { FiLogIn, FiMail, FiLock } from 'react-icons/fi';
 import * as Yup from 'yup';
 import { Form } from '@unform/web';
 import { FormHandles } from '@unform/core';
+import { Link, useHistory } from 'react-router-dom';
 import getValidationErros from '../../utils/getValidationErros';
 import logoImg from '../../assets/logo.svg';
 
@@ -11,7 +12,8 @@ import Button from '../../components/Button';
 
 import { Container, Content, Background } from './styles';
 
-import { useAuth } from '../../hooks/AuthContext';
+import { useAuth } from '../../hooks/auth';
+import { useToast } from '../../hooks/toast';
 
 interface SignInFormData {
   email: string;
@@ -22,6 +24,9 @@ const SignIn: React.FC = () => {
   const formRef = useRef<FormHandles>(null);
 
   const { signIn } = useAuth();
+  const { addToast } = useToast();
+
+  const history = useHistory();
 
   const handleSubmit = useCallback(
     async (data: SignInFormData) => {
@@ -37,17 +42,29 @@ const SignIn: React.FC = () => {
           abortEarly: false,
         });
 
-        signIn({
+        await signIn({
           email: data.email,
           password: data.password,
         });
-      } catch (err) {
-        const errors = getValidationErros(err);
 
-        formRef.current?.setErrors(errors);
+        history.push('/dashboard');
+      } catch (err) {
+        if (err instanceof Yup.ValidationError) {
+          const errors = getValidationErros(err);
+
+          formRef.current?.setErrors(errors);
+
+          return;
+        }
+        // disparar um toast
+        addToast({
+          type: 'info',
+          title: 'Erro na autenticação',
+          description: 'Ocorreu um erro ao fazer login, cheque as credenciais.',
+        });
       }
     },
-    [signIn],
+    [signIn, addToast, history],
   );
   return (
     <Container>
@@ -65,10 +82,10 @@ const SignIn: React.FC = () => {
           <Button type="submit">Entrar</Button>
           <a href="forgot">Esqueci minha senha</a>
         </Form>
-        <a href="criarconta">
+        <Link to="/signup">
           <FiLogIn />
           Criar conta
-        </a>
+        </Link>
       </Content>
       <Background />
     </Container>
